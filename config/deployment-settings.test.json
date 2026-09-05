@@ -1,0 +1,14 @@
+{
+  "EnvironmentVariables": [
+    {
+      "SchemaName": "cr123_SupportEmail",
+      "Value": "support-test@contoso.com"
+    },
+    {
+      "SchemaName": "cr123_AzureAISearchEndpoint",
+      "Value": "https://srch-copilotstudio-test.search.windows.net"
+    }
+  ],
+  "ConnectionReferences": []
+}
+

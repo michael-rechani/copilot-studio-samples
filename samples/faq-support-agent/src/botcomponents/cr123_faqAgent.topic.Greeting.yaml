@@ -1,0 +1,56 @@
+kind: AdaptiveDialog
+beginDialog:
+  kind: OnRecognizedIntent
+  id: main
+  intent:
+    triggerQueries:
+      - "hello"
+      - "hi"
+      - "good morning"
+      - "hey"
+      - "help me"
+
+  actions:
+    - kind: SendActivity
+      id: sendActivity_welcome
+      activity: "👋 Hi there! I am your Contoso Support Copilot. You can ask me questions about company policies, IT support, or opening a service ticket."
+
+    - kind: Question
+      id: question_options
+      interruptionPolicy:
+        allowInterruption: true
+      prompt: "What would you like to do?"
+      entity:
+        kind: ClosedListEntity
+        items:
+          - id: ask_faq
+            displayName: "Search FAQs & Knowledge"
+          - id: it_hardware
+            displayName: "Request IT Hardware / Laptop"
+          - id: speak_agent
+            displayName: "Talk to Human Support"
+      variable: init:Topic.UserChoice
+
+    - kind: ConditionGroup
+      id: condition_route
+      conditions:
+        - id: cond_faq
+          condition: =Topic.UserChoice = "Search FAQs & Knowledge"
+          actions:
+            - kind: SendActivity
+              id: send_faq_prompt
+              activity: "Sure! What question can I answer for you?"
+
+        - id: cond_hardware
+          condition: =Topic.UserChoice = "Request IT Hardware / Laptop"
+          actions:
+            - kind: SendActivity
+              id: send_hardware_info
+              activity: "To request new hardware, please submit your request to the IT portal at https://it.contoso.com/hardware."
+
+        - id: cond_agent
+          condition: =Topic.UserChoice = "Talk to Human Support"
+          actions:
+            - kind: BeginDialog
+              id: call_escalate
+              dialog: cr123_faqAgent.topic.Escalate

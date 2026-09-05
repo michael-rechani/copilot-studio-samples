@@ -1,0 +1,78 @@
+name: Deploy Copilot Studio Solution (CI/CD)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'samples/**'
+      - '.github/workflows/deploy-agent.yml'
+  workflow_dispatch:
+    inputs:
+      target_environment:
+        description: 'Target Power Platform Environment'
+        required: true
+        default: 'PROD'
+        type: choice
+        options:
+          - TEST
+          - PROD
+      solution_name:
+        description: 'Solution folder name under samples/'
+        required: true
+        default: 'faq-support-agent'
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    name: Build & Deploy Managed Copilot Solution
+    runs-on: windows-latest
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Install Power Platform Tools
+        uses: microsoft/powerplatform-actions/actions-install@v1
+
+      - name: 📦 Pack Solution (Prepare Managed Solution Zip)
+        uses: microsoft/powerplatform-actions/pack-solution@v1
+        with:
+          solution-folder: samples/${{ github.event.inputs.solution_name || 'faq-support-agent' }}
+          solution-file: out/drop/${{ github.event.inputs.solution_name || 'faq-support-agent' }}_managed.zip
+          solution-type: Managed
+
+      - name: 🔍 Run Solution Checker (Quality & Best Practices)
+        uses: microsoft/powerplatform-actions/check-solution@v1
+        continue-on-error: true
+        with:
+          environment-url: ${{ secrets.PP_ENVIRONMENT_URL_PROD }}
+          app-id: ${{ secrets.PP_CLIENT_ID }}
+          client-secret: ${{ secrets.PP_CLIENT_SECRET }}
+          tenant-id: ${{ secrets.PP_TENANT_ID }}
+          solution-file: out/drop/${{ github.event.inputs.solution_name || 'faq-support-agent' }}_managed.zip
+
+      - name: 🚀 Import Managed Solution to Target Environment
+        uses: microsoft/powerplatform-actions/import-solution@v1
+        with:
+          environment-url: ${{ github.event.inputs.target_environment == 'TEST' && secrets.PP_ENVIRONMENT_URL_TEST || secrets.PP_ENVIRONMENT_URL_PROD }}
+          app-id: ${{ secrets.PP_CLIENT_ID }}
+          client-secret: ${{ secrets.PP_CLIENT_SECRET }}
+          tenant-id: ${{ secrets.PP_TENANT_ID }}
+          solution-file: out/drop/${{ github.event.inputs.solution_name || 'faq-support-agent' }}_managed.zip
+          settings-file: config/deployment-settings.${{ github.event.inputs.target_environment == 'TEST' && 'test' || 'prod' }}.json
+          force-overwrite: true
+          publish-changes: true
+          activate-plugins: true
+
+      - name: ✨ Publish Customizations & Copilot Agent
+        uses: microsoft/powerplatform-actions/publish-solution@v1
+        with:
+          environment-url: ${{ github.event.inputs.target_environment == 'TEST' && secrets.PP_ENVIRONMENT_URL_TEST || secrets.PP_ENVIRONMENT_URL_PROD }}
+          app-id: ${{ secrets.PP_CLIENT_ID }}
+          client-secret: ${{ secrets.PP_CLIENT_SECRET }}
+          tenant-id: ${{ secrets.PP_TENANT_ID }}

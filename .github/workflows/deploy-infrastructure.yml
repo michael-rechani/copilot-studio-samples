@@ -1,0 +1,59 @@
+name: Deploy Azure Infrastructure for Copilot Studio
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment_name:
+        description: Target environment name
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - test
+          - prod
+      azure_region:
+        description: Azure region
+        required: true
+        default: eastus
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy-bicep:
+    name: Deploy Azure OpenAI, AI Search, Storage, and Key Vault
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment_name }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Azure login with OpenID Connect
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Create resource group
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            az group create \
+              --name "rg-copilotstudio-${{ github.event.inputs.environment_name }}" \
+              --location "${{ github.event.inputs.azure_region }}"
+
+      - name: Deploy Bicep template
+        uses: azure/arm-deploy@v2
+        with:
+          resourceGroupName: rg-copilotstudio-${{ github.event.inputs.environment_name }}
+          template: infrastructure/bicep/main.bicep
+          parameters: >
+            environmentName=${{ github.event.inputs.environment_name }}
+            location=${{ github.event.inputs.azure_region }}
+            prefix=copilotstudio
+

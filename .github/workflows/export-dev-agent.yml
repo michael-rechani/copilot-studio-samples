@@ -1,0 +1,70 @@
+name: Export Copilot Solution from Dev to Git
+
+on:
+  workflow_dispatch:
+    inputs:
+      solution_name:
+        description: 'Unique Solution Name in Power Platform (e.g., FAQSupportAgent)'
+        required: true
+        default: 'FAQSupportAgent'
+        type: string
+      folder_name:
+        description: 'Destination subfolder under samples/'
+        required: true
+        default: 'faq-support-agent'
+        type: string
+      commit_branch:
+        description: 'Branch to commit unpacked solution to'
+        required: true
+        default: 'main'
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  export-and-unpack:
+    name: Export from Dev & Unpack to Git
+    runs-on: windows-latest
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.commit_branch }}
+
+      - name: ⚙️ Install Power Platform Tools
+        uses: microsoft/powerplatform-actions/actions-install@v1
+
+      - name: 📤 Export Unmanaged Solution from Dev
+        uses: microsoft/powerplatform-actions/export-solution@v1
+        with:
+          environment-url: ${{ secrets.PP_ENVIRONMENT_URL_DEV }}
+          app-id: ${{ secrets.PP_CLIENT_ID }}
+          client-secret: ${{ secrets.PP_CLIENT_SECRET }}
+          tenant-id: ${{ secrets.PP_TENANT_ID }}
+          solution-name: ${{ github.event.inputs.solution_name }}
+          solution-output-file: out/export/${{ github.event.inputs.solution_name }}_unmanaged.zip
+          managed: false
+
+      - name: 📂 Unpack Solution into Git Source
+        uses: microsoft/powerplatform-actions/unpack-solution@v1
+        with:
+          solution-file: out/export/${{ github.event.inputs.solution_name }}_unmanaged.zip
+          solution-folder: samples/${{ github.event.inputs.folder_name }}
+          solution-type: Both
+          overwrite-files: true
+
+      - name: 💾 Commit and Push Updates to Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add samples/${{ github.event.inputs.folder_name }}
+          git status
+          if ((git status --porcelain) -ne "") {
+            git commit -m "Auto-export: updated solution ${{ github.event.inputs.solution_name }} from Dev [skip ci]"
+            git push origin ${{ github.event.inputs.commit_branch }}
+          } else {
+            Write-Host "No changes detected in solution."
+          }

@@ -1,0 +1,22 @@
+# Build & Export Artifacts
+out/
+*.zip
+*.log
+bin/
+obj/
+
+# Power Platform CLI local cache
+.pac/
+.env
+
+# Azure / Terraform local state
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
