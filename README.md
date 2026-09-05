@@ -8,17 +8,18 @@ Welcome to the **Copilot Studio Samples & Automation** repository! If you are co
 
 ## 📖 Table of Contents
 1. [What is Microsoft Copilot Studio? (For Beginners)](#-what-is-microsoft-copilot-studio-for-beginners)
-2. [Key Concepts & Mental Model](#-key-concepts--mental-model)
-3. [How Copilot Studio Deployment & Automation Works](#-how-copilot-studio-deployment--automation-works)
-4. [Repository Structure](#-repository-structure)
-5. [Step-by-Step Setup & CI/CD Guide](#-step-by-step-setup--cicd-guide)
+2. [What Can You Build? (Agent Archetypes & Azure AI Foundry Harness)](#-what-can-you-build-agent-archetypes--azure-ai-foundry-harness)
+3. [Key Concepts & Mental Model](#-key-concepts--mental-model)
+4. [How Copilot Studio Deployment & Automation Works](#-how-copilot-studio-deployment--automation-works)
+5. [Repository Structure](#-repository-structure)
+6. [Step-by-Step Setup & CI/CD Guide](#-step-by-step-setup--cicd-guide)
    - [Start Here: First-Time Setup Checklist](#start-here-first-time-setup-checklist)
    - [Phase 1: Environment & Authentication (SPN)](#phase-1-environment--authentication-spn)
    - [Phase 2: Exporting from Dev to Source Control](#phase-2-exporting-from-dev-to-source-control)
    - [Phase 3: Automated Deployment via GitHub Actions](#phase-3-automated-deployment-via-github-actions)
    - [Phase 4: Supporting Infrastructure (Azure OpenAI / Search)](#phase-4-supporting-infrastructure-azure-openai--search)
-6. [FAQ & Troubleshooting](#-faq--troubleshooting)
-7. [Contributing](CONTRIBUTING.md) · [License](LICENSE)
+7. [FAQ & Troubleshooting](#-faq--troubleshooting)
+8. [Contributing](CONTRIBUTING.md) · [License](LICENSE)
 
 ---
 
@@ -29,6 +30,20 @@ Welcome to the **Copilot Studio Samples & Automation** repository! If you are co
 Think of Copilot Studio as combining two powerful capabilities:
 1. **Generative AI (Conversational Intelligence):** Point your agent at SharePoint sites, internal documents, public URLs, or Azure OpenAI data, and it immediately answers user questions using retrieval-augmented generation (RAG) with grounded citations.
 2. **Deterministic Actions (Logic & Workflows):** When a user asks the agent to perform an action (e.g., *"Create an IT ticket"* or *"Check my order status"*), the agent can execute Power Automate cloud flows, call REST APIs via Custom Connectors, or trigger enterprise plugins.
+
+---
+
+## 🤖 What Can You Build? (Agent Archetypes & Azure AI Foundry Harness)
+
+Copilot Studio supports multiple agent archetypes and acts as a **front-end enterprise delivery harness for Azure AI Foundry**:
+
+- **Grounded Knowledge Agents (RAG):** Ingests SharePoint, PDFs, Dataverse tables, or Azure AI Search for verified conversational Q&A.
+- **Action & Transactional Agents:** Triggers Power Automate flows or REST APIs to create tickets (Jira/ServiceNow), query ERPs (SAP), or update CRM records.
+- **Autonomous & Event-Driven Agents:** Runs in the background, listening to emails, Dataverse triggers, or webhooks without needing human prompts.
+- **Declarative Agents for Microsoft 365:** Extends M365 Copilot inside Teams, Outlook, and Word with company data grounding and actions.
+- **Delivery Harness for Azure AI Foundry:** Copilot Studio handles enterprise distribution (Teams, Web, M365), Entra ID SSO, and DLP policies, while invoking code-first Python/C# agents, custom LLM fine-tunes, and Semantic Kernel workflows deployed in Azure AI Foundry via OpenAPI custom connectors or direct search grounding.
+
+> 📘 **Deep Dive:** See [docs/04-agent-archetypes-and-ai-foundry-harness.md](docs/04-agent-archetypes-and-ai-foundry-harness.md) for full architectural patterns and integration walkthroughs.
 
 ---
 
@@ -88,7 +103,8 @@ copilot-studio-samples/
 │   ├── 00-first-time-setup-checklist.md  # Start here if you're brand new
 │   ├── 01-copilot-studio-fundamentals.md  # Deep dive into agent structure & Power Fx
 │   ├── 02-alm-and-automation.md          # Full ALM guide, solutions, & PAC CLI
-│   └── 03-infrastructure-as-code.md      # Azure OpenAI & enterprise search integration
+│   ├── 03-infrastructure-as-code.md      # Azure OpenAI & enterprise search integration
+│   └── 04-agent-archetypes-and-ai-foundry-harness.md # Agent types & Azure AI Foundry harness pattern
 ├── config/
 │   ├── deployment-settings.test.json # Test environment overrides
 │   └── deployment-settings.prod.json # Production environment overrides
