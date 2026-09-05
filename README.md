@@ -2,6 +2,8 @@
 
 Welcome to the **Copilot Studio Samples & Automation** repository! If you are completely new to Microsoft Copilot Studio, this repository provides everything you need to understand, build, version control, and **automate the deployment** of Copilots (Agents), infrastructure, and configurations from Dev to Test to Production.
 
+> **Status:** Community starter kit, not an official Microsoft repository. GitHub Actions workflows use verified [`microsoft/powerplatform-actions`](https://github.com/microsoft/powerplatform-actions) and [`azure/arm-deploy`](https://github.com/Azure/arm-deploy) inputs, and the Bicep/Terraform templates have been validated with `az bicep build` and `terraform validate`. The sample agent under `samples/faq-support-agent/` is a **hand-authored template**, not a real export — see [its README](samples/faq-support-agent/README.md) before relying on it.
+
 ---
 
 ## 📖 Table of Contents
@@ -16,6 +18,7 @@ Welcome to the **Copilot Studio Samples & Automation** repository! If you are co
    - [Phase 3: Automated Deployment via GitHub Actions](#phase-3-automated-deployment-via-github-actions)
    - [Phase 4: Supporting Infrastructure (Azure OpenAI / Search)](#phase-4-supporting-infrastructure-azure-openai--search)
 6. [FAQ & Troubleshooting](#-faq--troubleshooting)
+7. [Contributing](CONTRIBUTING.md) · [License](LICENSE)
 
 ---
 
@@ -89,6 +92,8 @@ copilot-studio-samples/
 ├── config/
 │   ├── deployment-settings.test.json # Test environment overrides
 │   └── deployment-settings.prod.json # Production environment overrides
+├── CONTRIBUTING.md                   # How to propose changes to this repo
+├── LICENSE                           # MIT license
 ├── infrastructure/
 │   ├── bicep/
 │   │   ├── main.bicep               # Bicep for Azure OpenAI, AI Search, & Key Vault
@@ -97,9 +102,11 @@ copilot-studio-samples/
 │       ├── main.tf                  # Terraform alternative for cloud infra
 │       └── variables.tf
 ├── samples/
-│   └── faq-support-agent/           # Sample unpacked Copilot Studio solution
-│       ├── solution.xml             # Solution manifest & dependencies
-│       ├── customizations.xml       # Metadata & configurations
+│   └── faq-support-agent/           # ⚠️ Hand-authored TEMPLATE, not a real PAC export — see its README
+│       ├── README.md                # Explains this is a template, not an importable solution
+│       ├── Other/
+│       │   ├── Solution.xml         # Solution manifest & dependencies
+│       │   └── Customizations.xml   # Metadata & configurations
 │       └── src/
 │           ├── botcomponents/       # Individual topics, dialogs, & settings
 │           └── environmentvariabledefinitions/ # Dynamic config values

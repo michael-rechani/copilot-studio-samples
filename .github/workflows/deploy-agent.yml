@@ -54,7 +54,7 @@ jobs:
           app-id: ${{ secrets.PP_CLIENT_ID }}
           client-secret: ${{ secrets.PP_CLIENT_SECRET }}
           tenant-id: ${{ secrets.PP_TENANT_ID }}
-          solution-file: out/drop/${{ github.event.inputs.solution_name || 'faq-support-agent' }}_managed.zip
+          path: out/drop/${{ github.event.inputs.solution_name || 'faq-support-agent' }}_managed.zip
 
       - name: 🚀 Import Managed Solution to Target Environment
         uses: microsoft/powerplatform-actions/import-solution@v1
@@ -64,7 +64,8 @@ jobs:
           client-secret: ${{ secrets.PP_CLIENT_SECRET }}
           tenant-id: ${{ secrets.PP_TENANT_ID }}
           solution-file: out/drop/${{ github.event.inputs.solution_name || 'faq-support-agent' }}_managed.zip
-          settings-file: config/deployment-settings.${{ github.event.inputs.target_environment == 'TEST' && 'test' || 'prod' }}.json
+          use-deployment-settings-file: true
+          deployment-settings-file: config/deployment-settings.${{ github.event.inputs.target_environment == 'TEST' && 'test' || 'prod' }}.json
           force-overwrite: true
           publish-changes: true
           activate-plugins: true

@@ -50,6 +50,7 @@ jobs:
       - name: Deploy Bicep template
         uses: azure/arm-deploy@v2
         with:
+          scope: resourcegroup
           resourceGroupName: rg-copilotstudio-${{ github.event.inputs.environment_name }}
           template: infrastructure/bicep/main.bicep
           parameters: >
