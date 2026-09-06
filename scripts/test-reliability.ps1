@@ -292,3 +292,5 @@ foreach ($file in Get-ChildItem -LiteralPath (Join-Path $root '.github\workflows
     }
 }
 Write-Host "$($counter.Value) offline reliability checks passed. No tenant integration was exercised."
+# GitHub's pwsh wrapper propagates LASTEXITCODE, including deliberately failed test commands.
+exit 0
