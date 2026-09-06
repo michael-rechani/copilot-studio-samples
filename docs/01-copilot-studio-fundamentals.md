@@ -1,107 +1,54 @@
-# 📚 01: Copilot Studio Fundamentals & Architecture
+# 01: Copilot Studio fundamentals
 
-This guide explains the inner workings of Microsoft Copilot Studio for engineers, developers, and architects coming from traditional software development.
+**Source review: 2026-09-05.** This guide concerns the standard-harness capabilities referenced in the [capability matrix](04-agent-archetypes-and-ai-foundry-harness.md). It is not a statement that every feature is available in every tenant or harness.
 
----
+## A useful mental model
 
-## 🏗️ What is a Copilot Studio Agent?
+An agent combines instructions, orchestration, topics, knowledge, and tools. Copilot Studio operates the agent service; Dataverse stores solution components and related configuration. Describing the entire runtime as “hosted inside Dataverse” is misleading.
 
-In Copilot Studio, an **Agent** (or Copilot) is a composite cloud application hosted within Microsoft Dataverse. It is not just a single prompt or model; it is an orchestration engine that blends:
+| Concept | Purpose | Important boundary |
+|---|---|---|
+| Power Platform environment | Isolates development, testing, or production resources | Not the same as a GitHub environment or Azure resource group |
+| Dataverse solution | Packages solution-aware components for ALM | Does not provision Azure resources, copy all external data, or carry every runtime connection |
+| Topic | Explicit conversation path with questions, conditions, messages, and tools | Validate required inputs and confirmation before side effects |
+| Knowledge | Retrieves source material to inform an answer | Sources differ in authentication, indexing, freshness, citations, and limits |
+| Tool | Calls a connector, flow, prompt, or other supported operation | Backend permissions and input validation remain necessary |
+| Connected agent | Delegates work to another agent | Has its own identity, permissions, state, runtime, and possibly cost |
+| Environment variable / connection reference | Separates deploy-time configuration from reusable components | A reference is not a credential or a newly created target connection |
 
-1. **Conversational Orchestration Engine:** Decides whether to route user queries to a custom deterministic topic or a generative AI knowledge search.
-2. **Topics & Dialogs:** Flowchart-like conversation trees built with trigger phrases, conditions, question nodes, and message responses.
-3. **Generative AI Grounding (RAG):** Natural language answering grounded over corporate data sources (SharePoint, Azure AI Search, Public URLs, Dataverse tables, uploaded PDFs).
-4. **Actions & Plugins:** Connectors (REST APIs), Power Automate Cloud Flows, and Bot Framework Skills that perform real-world operations.
-5. **Entity Recognition & Slot Filling:** Extracts parameters from user text (e.g., date, email, order number) into typed variables.
+Knowledge grounding, model invocation, and agent delegation are **three different integration contracts**. Adding Azure AI Search does not call a Foundry agent. Calling a model API does not replace all Copilot Studio models. Connecting an agent does not transfer the signed-in user's permissions to all of its tools.
 
----
+## Start with knowledge, then add a bounded tool
 
-## 🧱 Anatomy of an Unpacked Copilot Solution
+Use approved, non-sensitive lab content first. Add it on the **Knowledge** page, wait for the source to be ready, and test known-answer and no-answer questions. [Knowledge sources](https://learn.microsoft.com/en-us/microsoft-copilot-studio/knowledge-copilot-studio) support different retrieval and authentication mechanisms. SharePoint/Dataverse user-authenticated retrieval is not equivalent to an uploaded copy of the same document or a search index accessed with a shared identity.
 
-When you export a Copilot from Power Platform using the PAC CLI (`pac solution export`), it is unpacked into structured files:
+Ask the agent to cite sources and admit missing information. Turning off **Allow ungrounded responses** can block turns that use no knowledge source or tool, but does not guarantee that the model never incorporates general knowledge. Evaluate the actual answer and citation rather than treating a citation as proof of truth.
 
-```text
-faq-support-agent/
-├── Other/
-│   ├── Customizations.xml     # Solution metadata, entities, and permissions
-│   ├── Relationships.xml      # Entity relationship maps
-│   └── Solution.xml           # Solution manifest, publisher, and version number
-└── src/
-    ├── bot/                   # Bot record metadata (display name, schema name)
-    ├── botcomponents/         # Topics, dialog trees, AI configuration files
-    │   ├── cr123_faqAgent.topic.Greeting.yaml
-    │   ├── cr123_faqAgent.topic.Escalate.yaml
-    │   ├── cr123_faqAgent.topic.SearchKnowledge.yaml
-    │   └── cr123_faqAgent.topic.Fallback.yaml
-    ├── environmentvariabledefinitions/
-    └── connectionreferences/
-```
+Use a topic to collect ticket details and show an explicit confirmation summary before a ticket-creation tool. Let deterministic conditions gate that operation; do not rely only on “ask first” in the agent instructions. A backend must also enforce authorization, validate inputs, and prevent duplicate writes.
 
-### The Topic Definition (YAML Format)
-Copilot Studio stores conversational logic in clean, human-readable YAML. For example, a greeting topic looks like this:
+The [IT support walkthrough](05-it-support-reference-walkthrough.md) gives concrete lab inputs, a proposed tool contract, failure handling, and an evaluation table.
 
-```yaml
-kind: AdaptiveDialog
-beginDialog:
-  kind: OnRecognizedIntent
-  id: main
-  intent:
-    triggerQueries:
-      - "hello"
-      - "hi there"
-      - "good morning"
-      - "help"
+## Identity is configured at more than one layer
 
-  actions:
-    - kind: SendActivity
-      id: sendActivity_welcome
-      activity: "Hello! I am your AI Support Assistant. How can I assist you today?"
+1. **User → agent.** Choose **Settings → Security → Authentication**. The options are No authentication, Authenticate with Microsoft, and Authenticate manually. No authentication lets anyone with access to the link interact with the agent. For an internal Teams lab, start with Authenticate with Microsoft and verify sharing restrictions.
+2. **Agent → knowledge/tool.** Review the connection and its owner. User authentication and maker/agent-author credentials have different access semantics. Authentication to the conversation does not imply connector SSO or user impersonation.
+3. **Tool/agent → downstream system.** That system must validate its own caller identity and authorize access. Do not treat a display name, email supplied in chat, or a prompt variable as proof of identity.
+4. **Deployment identity → Dataverse.** A pipeline's application user imports/exports solution components. It is not the end user's runtime identity.
 
-    - kind: Question
-      id: question_category
-      interruptionPolicy:
-        allowInterruption: true
-      prompt: "What department do you need help with?"
-      entity:
-        kind: ClosedListEntity
-        items:
-          - id: it_support
-            displayName: "IT & Hardware"
-          - id: hr_support
-            displayName: "Human Resources"
-          - id: billing
-            displayName: "Billing & Invoices"
-      variable: init:Topic.SelectedCategory
+[Authenticate with Microsoft](https://learn.microsoft.com/en-us/microsoft-copilot-studio/configuration-end-user-authentication) exposes `User.ID` and `User.DisplayName`; do not assume `User.Email` or `User.AccessToken` is available. The documented manual-authentication option exposes additional token/login variables. Request only necessary scopes, keep tokens out of prompts/logs, and republish after authentication changes.
 
-    - kind: ConditionGroup
-      id: conditionGroup_route
-      conditions:
-        - id: cond_it
-          condition: =Topic.SelectedCategory = "IT & Hardware"
-          actions:
-            - kind: BeginDialog
-              id: jump_it_topic
-              dialog: cr123_faqAgent.topic.ITSupport
-```
+Tool authentication is channel-specific: [the documented table](https://learn.microsoft.com/en-us/microsoft-copilot-studio/configure-enduser-authentication) supports user authentication for tools on custom websites and Teams (with required SSO setup), but not Mobile App or Azure Bot Service channels. Slack via Azure Bot Service and mobile delivery are therefore not blanket equivalents of Teams. Check current channel and tenant policies before choosing a deployment surface.
 
----
+## Solutions and readable source
 
-## 🔄 Power Fx Expressions
+Build an unmanaged solution in Dev and add the agent plus its solution-aware dependencies. A genuine PAC export creates a ZIP; **export does not automatically unpack it**. A separate unpack operation can produce readable source for review, with the exact layout dependent on tooling and component types. This repository's promotion path intentionally does not unpack or repack.
 
-Copilot Studio uses **Power Fx** (the same formula language used in Microsoft Excel and Power Apps) for logic, calculations, and data formatting.
+The files in `samples\faq-support-agent` merely illustrate topic and metadata shapes. They omit real exported component metadata and cannot establish a valid schema or importable solution. Author in Copilot Studio and use a genuine export, rather than treating the illustrative YAML as a supported standalone deployment.
 
-Common examples:
-- **String manipulation:** `="Welcome, " & User.DisplayName & "!"`
-- **Date calculations:** `=Text(DateAdd(Today(), 7, TimeUnit.Days), "yyyy-MM-dd")`
-- **Boolean conditions:** `=IsBlank(Topic.UserEmail) || Topic.RetryCount > 3`
-- **JSON parsing:** `=ParseJson(Topic.ApiResponse).status`
+Power Fx can express conditions and formatting in topic nodes. Variable names, types, scope, and availability must be checked in the authoring canvas. An expression that parses is not evidence that a particular authenticated user property exists at runtime.
 
----
+## Model and infrastructure boundaries
 
-## 🔐 Authentication Modes
+[Primary model selection](https://learn.microsoft.com/en-us/microsoft-copilot-studio/authoring-select-agent-model) controls generative orchestration and has separate settings from generative responses and prompt builder. Available models depend on region, release status, harness, and administrator settings. This is not an arbitrary fine-tuned endpoint override.
 
-Copilot Studio supports 3 main authentication models:
-
-1. **No Authentication (Public):** The Copilot is deployed to a public website where any anonymous visitor can chat.
-2. **Authenticate with Microsoft (Entra ID):** Ideal for internal Microsoft Teams or SharePoint Copilots. Users are automatically identified, giving access to user profile variables (`User.DisplayName`, `User.Email`, `User.Id`).
-3. **Manual / Generic OAuth2:** Used to authenticate against third-party identity providers (Okta, Auth0, Google, custom IDPs) with PKCE and token exchange.
+Optional Azure AI Search, model deployments, and Foundry agents are separate resources. The [actual infrastructure inventory](03-infrastructure-as-code.md) explains why creating the provided Azure resources does not create a populated index, permission-filtered retrieval, a Foundry project, or a connected agent.

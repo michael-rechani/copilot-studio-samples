@@ -6,11 +6,11 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot 'deployment-common.ps1')
 $root = Split-Path -Parent $PSScriptRoot
-$count = 0
+$counter = @{ Value = 0 }
 function Assert-True {
     param([bool]$Condition, [string]$Message)
     if (-not $Condition) { throw $Message }
-    $script:count++
+    $counter.Value++
 }
 function Assert-Rejected {
     param([scriptblock]$Action, [string]$MessagePattern)
@@ -47,7 +47,7 @@ Assert-Rejected { Assert-CheckerStatus @('Status: FinishedWithErrors') } 'did no
 Assert-Rejected { Assert-CheckerStatus @('Status: Failed') } 'did not report'
 Assert-Rejected { Assert-CheckerStatus @('Unrecognized output') } 'did not report'
 Assert-CheckerStatus @('Checking solution', '    Status: Finished')
-$count++
+$counter.Value++
 
 $environmentNames = @('PP_AUTOMATION_ENABLED', 'PP_ENVIRONMENT_URL', 'PP_TENANT_ID', 'PP_CLIENT_ID', 'PP_CLIENT_SECRET', 'GITHUB_REPOSITORY', 'GITHUB_OUTPUT')
 $saved = @{}
@@ -98,7 +98,7 @@ try {
     }
     $validator = Join-Path $PSScriptRoot 'validate-deployment.ps1'
     & $validator @parameters
-    $count++
+    $counter.Value++
     Assert-Rejected { & (Join-Path $PSScriptRoot 'import-agent.ps1') -TargetEnvironmentUrl 'https://test.invalid' -SolutionFile $solution -ManifestFile $manifestFile -ExpectedSolutionName 'TestOnly' -DeploymentSettingsFile $settingsFile } 'disabled without -ConfirmImport'
     Assert-Rejected { & (Join-Path $PSScriptRoot 'export-agent.ps1') -EnvironmentUrl 'https://test.invalid' -SolutionName 'TestOnly' -OutputFolder $temp } 'must not exist'
     $parameters.SolutionFile = Join-Path $root 'samples\faq-support-agent\Other\Solution.xml'
@@ -117,8 +117,11 @@ try {
     Assert-Rejected { & $validator @parameters } 'hash mismatch'
     $manifest.ManagedSha256 = (Get-FileHash $solution).Hash
     $manifest | ConvertTo-Json | Set-Content -LiteralPath $manifestFile
-    foreach ($file in @('deployment-settings.test.json', 'deployment-settings.prod.json')) {
-        $parameters.DeploymentSettingsFile = Join-Path $root "config\$file"
+    $placeholderSettingsFile = Join-Path $temp 'placeholder-settings.json'
+    foreach ($placeholder in @('REPLACE_WITH_TARGET_ENDPOINT', 'https://contoso.com', '00000000-0000-0000-0000-000000000000')) {
+        (Get-Content -LiteralPath $settingsFile -Raw).Replace('https://backend.invalid', $placeholder) |
+            Set-Content -LiteralPath $placeholderSettingsFile
+        $parameters.DeploymentSettingsFile = $placeholderSettingsFile
         Assert-Rejected { & $validator @parameters } 'placeholders'
     }
     $parameters.DeploymentSettingsFile = $settingsFile
@@ -149,13 +152,13 @@ try {
     Assert-Rejected { & $checker -ResultsFolder $reports } 'analysis failed'
     '{"runs":[{"results":[],"invocations":[{"executionSuccessful":true}]}]}' | Set-Content -LiteralPath $report
     & $checker -ResultsFolder $reports
-    $count++
+    $counter.Value++
     $zippedReports = Join-Path $temp 'zipped-reports'
     New-Item -ItemType Directory -Path $zippedReports | Out-Null
     $zipReport = Join-Path $zippedReports 'checker-results.zip'
     [IO.Compression.ZipFile]::CreateFromDirectory($reports, $zipReport)
     & $checker -ResultsFolder $zippedReports
-    $count++
+    $counter.Value++
     Remove-Item -LiteralPath $zipReport
     '{"runs":[{"results":[{"message":{"text":"finding inside ZIP"}}]}]}' | Set-Content -LiteralPath $report
     [IO.Compression.ZipFile]::CreateFromDirectory($reports, $zipReport)
@@ -179,7 +182,7 @@ try {
     }
     $runValidator = Join-Path $PSScriptRoot 'validate-export-run.ps1'
     & $runValidator -RunId '123'
-    $count++
+    $counter.Value++
     foreach ($field in @('path', 'event', 'head_branch', 'status', 'conclusion')) {
         $original = $runFixture[$field]
         $runFixture[$field] = 'wrong'
@@ -189,9 +192,82 @@ try {
     $runFixture.head_repository.full_name = 'fork/repository'
     Assert-Rejected { & $runValidator -RunId '123' } 'successful main-branch export'
     Assert-Rejected { & $runValidator -RunId '123; injected' } 'Cannot validate argument|does not match'
+
+    # Exercise script orchestration with a fake PAC command, never the installed CLI.
+    $pacCalls = [Collections.Generic.List[string]]::new()
+    $pacFailure = ''
+    function pac {
+        $operation = $args[0..1] -join ' '
+        $pacCalls.Add($operation)
+        $global:LASTEXITCODE = 0
+        if ($operation -eq $pacFailure) {
+            $global:LASTEXITCODE = 23
+            return
+        }
+        switch ($operation) {
+            'auth create' {}
+            'solution export' {
+                $pathIndex = [array]::IndexOf($args, '--path') + 1
+                $managedFlag = if ($args -contains '--managed') { '1' } else { '0' }
+                Write-TestArchive $args[$pathIndex] $managedFlag
+            }
+            'solution create-settings' {
+                $settingsIndex = [array]::IndexOf($args, '--settings-file') + 1
+                $template | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $args[$settingsIndex]
+            }
+            'solution check' {
+                $outputIndex = [array]::IndexOf($args, '--outputDirectory') + 1
+                New-Item -ItemType Directory -Path $args[$outputIndex] | Out-Null
+                [IO.Compression.ZipFile]::CreateFromDirectory($cleanReports, (Join-Path $args[$outputIndex] 'results.zip'))
+                'Status: Finished'
+            }
+            'solution import' {
+                foreach ($flag in @('--settings-file', '--environment', '--path', '--force-overwrite', '--publish-changes', '--activate-plugins')) {
+                    Assert-True ($args -contains $flag) "Local import omitted $flag."
+                }
+                foreach ($flag in @('--force-overwrite', '--publish-changes', '--activate-plugins')) {
+                    $flagIndex = [array]::IndexOf($args, $flag) + 1
+                    Assert-True ($args[$flagIndex] -ceq 'false') "Local import enabled $flag."
+                }
+            }
+            default { throw "Unexpected test PAC operation: $operation" }
+        }
+    }
+    $exportScript = Join-Path $PSScriptRoot 'export-agent.ps1'
+    $fakeExport = Join-Path $temp 'fake-export'
+    & $exportScript -EnvironmentUrl 'https://test.invalid' -SolutionName 'TestOnly' -OutputFolder $fakeExport
+    Assert-True (($pacCalls -join ',') -eq 'auth create,solution export,solution export,solution create-settings') 'Export orchestration differs.'
+    $pacCalls.Clear()
+    $pacFailure = 'auth create'
+    Assert-Rejected { & $exportScript -EnvironmentUrl 'https://test.invalid' -SolutionName 'TestOnly' -OutputFolder (Join-Path $temp 'failed-export') } 'exit code 23'
+    Assert-True (($pacCalls -join ',') -eq 'auth create') 'Export continued after failed authentication.'
+    $pacFailure = ''
+
+    # Redirect only this test's checker output into its disposable fixture directory.
+    $cleanReports = Join-Path $temp 'clean-reports'
+    New-Item -ItemType Directory -Path $cleanReports | Out-Null
+    '{"runs":[{"results":[]}]}' | Set-Content -LiteralPath (Join-Path $cleanReports 'result.sarif')
+    $settings.EnvironmentVariables = @(@{ SchemaName = 'test_Endpoint'; Value = 'https://backend.invalid' })
+    $settings | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $settingsFile
+    $importParameters = @{
+        TargetEnvironmentUrl = 'https://test.invalid'
+        SolutionFile = (Join-Path $fakeExport 'solution.zip')
+        ManifestFile = (Join-Path $fakeExport 'manifest.json')
+        ExpectedSolutionName = 'TestOnly'; DeploymentSettingsFile = $settingsFile
+        ConfirmImport = $true; CheckerOutputFolder = (Join-Path $temp 'local-checker')
+    }
+    $pacCalls.Clear()
+    & (Join-Path $PSScriptRoot 'import-agent.ps1') @importParameters
+    Assert-True (($pacCalls -join ',') -eq 'auth create,solution check,solution import') 'Import orchestration differs.'
+    $pacCalls.Clear()
+    $pacFailure = 'solution check'
+    $importParameters.CheckerOutputFolder = Join-Path $temp 'failed-checker'
+    Assert-Rejected { & (Join-Path $PSScriptRoot 'import-agent.ps1') @importParameters } 'exit code 23'
+    Assert-True (-not $pacCalls.Contains('solution import')) 'Import continued after checker failure.'
 } finally {
     foreach ($name in $environmentNames) { [Environment]::SetEnvironmentVariable($name, $saved[$name]) }
     Remove-Item Function:\gh -ErrorAction SilentlyContinue
+    Remove-Item Function:\pac -ErrorAction SilentlyContinue
     # Only the uniquely created test fixture directory is removed.
     Remove-Item -LiteralPath $temp -Recurse -Force
 }
@@ -215,4 +291,4 @@ foreach ($file in Get-ChildItem -LiteralPath (Join-Path $root '.github\workflows
         Assert-True ($match.Groups['body'].Value -notmatch '\$\{\{\s*(?:github\.event\.)?inputs\.') "Untrusted input interpolated into script in $($file.Name)."
     }
 }
-Write-Host "$count offline reliability checks passed. No tenant integration was exercised."
+Write-Host "$($counter.Value) offline reliability checks passed. No tenant integration was exercised."
