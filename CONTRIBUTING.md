@@ -25,7 +25,7 @@ This repository is a **teaching and starter-kit resource** for automating Micros
    ```powershell
    [System.Management.Automation.Language.Parser]::ParseFile("scripts\your-script.ps1", [ref]$null, [ref]$null)
    ```
-6. For deployment scripts/workflows, run the existing offline regression checks from the repository root:
+6. For deployment scripts/workflows or sample assets, run the existing offline regression checks from the repository root. Sample YAML parsing uses `powershell-yaml` version `0.4.12` (also installed by CI). If it is missing locally, install it with `Install-Module powershell-yaml -RequiredVersion 0.4.12 -Scope CurrentUser`, then run:
    ```powershell
    pwsh -NoProfile -File .\scripts\test-reliability.ps1
    ```
@@ -34,7 +34,7 @@ This repository is a **teaching and starter-kit resource** for automating Micros
 
 ## Sample solution disclaimer
 
-The files under `samples/faq-support-agent/` are **hand-authored, non-importable examples**, not a real export from a Power Platform environment. Do not use them as a deployment payload. Export automation retains genuine managed/unmanaged archives rather than committing, unpacking, or repacking them.
+The editable files under `samples/it-faq-agent/` and `samples/ticket-intake-agent/` are **hand-authored UI assets**, not a real export from a Power Platform environment. The old `samples/faq-support-agent/` fake solution has been retired. Document each asset's supported destination, official schema source/license provenance, and manual expected outcomes. Never claim a submission or escalation without backend success. Do not use sample folders as deployment payloads. Export automation retains genuine managed/unmanaged archives rather than committing, unpacking, or repacking them.
 
 Before contributing tenant-derived content, review permission to share it and remove sensitive data from a separate illustrative copy. Clearly label redacted source as illustrative: changing real component IDs inside a deployment archive breaks its integrity/provenance and can make it unusable. Never publish credentials or private tenant content.
 

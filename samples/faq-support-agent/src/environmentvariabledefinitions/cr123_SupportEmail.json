@@ -1,7 +1,0 @@
-{
-  "SchemaName": "cr123_SupportEmail",
-  "DisplayName": "IT Support Email Endpoint",
-  "Description": "Dynamic email routing address configured per environment (dev vs prod)",
-  "Type": 100000000,
-  "DefaultValue": "support-dev@contoso.com"
-}

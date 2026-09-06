@@ -13,7 +13,19 @@ Community teaching material for building an agent in Copilot Studio and promotin
 5. [Capability matrix and Foundry integration](docs/04-agent-archetypes-and-ai-foundry-harness.md): sourced distinctions between search, model calls, and delegation.
 6. [Beginner IT support walkthrough](docs/05-it-support-reference-walkthrough.md): knowledge Q&A, a user-confirmed ticket tool, and an optional Foundry specialist.
 
-The [sample files](samples/faq-support-agent/README.md) are **hand-authored, illustrative, and not importable**. Do not pack them for deployment. The walkthrough is a build-your-own reference, not a tested or packaged application.
+## Editable starter agents
+
+| Sample | What you can use now |
+|---|---|
+| [IT FAQ agent](samples/it-faq-agent/README.md) | Paste agent instructions, upload five fictional approved FAQs, and paste a scope topic; includes grounding/citation setup and expected answers |
+| [Ticket intake agent](samples/ticket-intake-agent/README.md) | Paste a topic that collects summary/category, previews, and explicitly confirms or cancels a **draft only**; includes an optional, unwired OpenAPI 2.0 lab contract |
+
+Each sample maps actual files to Copilot Studio UI surfaces and includes manual
+test cases. Topic syntax is based on [pinned Microsoft sources](samples/SOURCES.md);
+**tenant save/import and runtime behavior remain untested**. These are editable
+single-topic/config assets, not whole-agent or Dataverse solution imports. No
+backend or credentials are provided. Genuine exports are still required for
+promotion. The old fake solution/topic files have been [retired](samples/faq-support-agent/README.md).
 
 ## What can you build?
 
@@ -74,7 +86,9 @@ Run `export-dev-agent.yml` from `main` against a real Dev solution. Run `deploy-
 | `scripts/import-agent.ps1` | Explicit local import; **bypasses GitHub approvals** |
 | `config/` | Separately reviewed environment settings, never credentials |
 | `infrastructure/` | Unequal Bicep and Terraform starter templates, not a complete Foundry/RAG deployment |
-| `samples/faq-support-agent/` | Educational file shapes only |
+| `samples/it-faq-agent/` | Instructions, fictional Markdown knowledge, scope topic, and manual cases |
+| `samples/ticket-intake-agent/` | Confirm/cancel draft topic, instructions, unwired lab API contract, and manual cases |
+| `samples/SOURCES.md` | Official schema/setup references and adapted-pattern license notice |
 
 For local commands, checker behavior, artifact retention, release evidence, rollback considerations, and publication, follow the [ALM guide](docs/02-alm-and-automation.md), not a sample-folder packaging shortcut.
 

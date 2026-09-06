@@ -1,0 +1,76 @@
+kind: AdaptiveDialog
+modelDescription: Collect a fictional IT ticket draft and confirm or cancel it. This topic never submits a ticket or contacts support.
+beginDialog:
+  kind: OnRecognizedIntent
+  id: main
+  intent:
+    triggerQueries:
+      - draft a lab ticket
+      - create a demo ticket
+      - help me draft an IT request
+  actions:
+    - kind: SetVariable
+      id: resetSummary
+      variable: Topic.Summary
+      value: =Blank()
+    - kind: SetVariable
+      id: resetCategory
+      variable: Topic.Category
+      value: =Blank()
+    - kind: SetVariable
+      id: resetConfirmation
+      variable: Topic.Confirmation
+      value: =Blank()
+    - kind: Question
+      id: askSummary
+      variable: Topic.Summary
+      prompt: "Lab only: describe an invented IT symptom in 1-200 characters, or type cancel. Do not include passwords, codes, names, email addresses, device identifiers, or other personal information. Nothing will be submitted."
+      entity: StringPrebuiltEntity
+    - kind: ConditionGroup
+      id: validateSummary
+      conditions:
+        - id: validSummary
+          condition: =!IsBlank(Trim(Topic.Summary)) && Len(Topic.Summary) <= 200 && Lower(Trim(Topic.Summary)) <> "cancel"
+          actions:
+            - kind: Question
+              id: askCategory
+              variable: Topic.Category
+              prompt: "Type hardware, software, or access (exactly), or cancel. This is still only a draft."
+              entity: StringPrebuiltEntity
+            - kind: ConditionGroup
+              id: validateCategory
+              conditions:
+                - id: validCategory
+                  condition: =Topic.Category = "hardware" || Topic.Category = "software" || Topic.Category = "access"
+                  actions:
+                    - kind: SendActivity
+                      id: previewDraft
+                      activity: "Review this fictional draft. Summary: {Topic.Summary}. Category: {Topic.Category}. No ticket has been created."
+                    - kind: Question
+                      id: askConfirmation
+                      variable: Topic.Confirmation
+                      prompt: "Type confirm to display this draft, or cancel to stop. Any response other than confirm stops without confirmation. To edit, cancel and start a new draft. Confirm does not submit anything."
+                      entity: StringPrebuiltEntity
+                    - kind: ConditionGroup
+                      id: confirmDraft
+                      conditions:
+                        - id: explicitlyConfirmed
+                          condition: =Topic.Confirmation = "confirm"
+                          actions:
+                            - kind: SendActivity
+                              id: showConfirmedDraft
+                              activity: "Confirmed draft only. Summary: {Topic.Summary}. Category: {Topic.Category}. No ticket has been created and nobody has been contacted. For real help, use your organization's existing approved support channel."
+                      elseActions:
+                        - kind: SendActivity
+                          id: cancelConfirmation
+                          activity: "Draft not confirmed. No ticket has been created and nobody has been contacted."
+              elseActions:
+                - kind: SendActivity
+                  id: cancelCategory
+                  activity: "Draft stopped: category was canceled or was not hardware, software, or access. No ticket has been created. Say draft a lab ticket to start again."
+      elseActions:
+        - kind: SendActivity
+          id: cancelSummary
+          activity: "Draft stopped: summary was canceled, blank, or longer than 200 characters. No ticket has been created. Say draft a lab ticket to start again."
+inputType: {}
+outputType: {}
