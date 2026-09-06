@@ -15,6 +15,9 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
+      - name: Install pinned sample YAML parser
+        shell: pwsh
+        run: Install-Module powershell-yaml -RequiredVersion 0.4.12 -Scope CurrentUser -Force -Repository PSGallery
       - name: PowerShell syntax and fail-closed regression checks
         shell: pwsh
         run: .\scripts\test-reliability.ps1

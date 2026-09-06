@@ -101,7 +101,7 @@ try {
     $counter.Value++
     Assert-Rejected { & (Join-Path $PSScriptRoot 'import-agent.ps1') -TargetEnvironmentUrl 'https://test.invalid' -SolutionFile $solution -ManifestFile $manifestFile -ExpectedSolutionName 'TestOnly' -DeploymentSettingsFile $settingsFile } 'disabled without -ConfirmImport'
     Assert-Rejected { & (Join-Path $PSScriptRoot 'export-agent.ps1') -EnvironmentUrl 'https://test.invalid' -SolutionName 'TestOnly' -OutputFolder $temp } 'must not exist'
-    $parameters.SolutionFile = Join-Path $root 'samples\faq-support-agent\Other\Solution.xml'
+    $parameters.SolutionFile = Join-Path $root 'samples\faq-support-agent\README.md'
     Assert-Rejected { & $validator @parameters } 'Central Directory|archive|zip|End of Central'
     $parameters.SolutionFile = $unmanaged
     Assert-Rejected { & $validator @parameters } 'Only a managed export'
@@ -291,6 +291,7 @@ foreach ($file in Get-ChildItem -LiteralPath (Join-Path $root '.github\workflows
         Assert-True ($match.Groups['body'].Value -notmatch '\$\{\{\s*(?:github\.event\.)?inputs\.') "Untrusted input interpolated into script in $($file.Name)."
     }
 }
+& (Join-Path $PSScriptRoot 'test-samples.ps1')
 Write-Host "$($counter.Value) offline reliability checks passed. No tenant integration was exercised."
 # GitHub's pwsh wrapper propagates LASTEXITCODE, including deliberately failed test commands.
 exit 0

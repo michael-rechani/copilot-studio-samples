@@ -1,0 +1,16 @@
+kind: AdaptiveDialog
+modelDescription: Explain what the fictional Northstar Lab IT FAQ demo can and cannot do.
+beginDialog:
+  kind: OnRecognizedIntent
+  id: main
+  intent:
+    triggerQueries:
+      - what can this demo do
+      - explain the lab assistant
+      - can this demo create tickets
+  actions:
+    - kind: SendActivity
+      id: explainScope
+      activity: "This fictional lab demo answers questions from the Northstar Lab IT FAQ. Try asking about help desk hours, software requests, VPN troubleshooting, account recovery, or loaner laptops. I cannot change accounts, create tickets, or connect you to a person. Do not share passwords, codes, or personal information."
+inputType: {}
+outputType: {}

@@ -1,0 +1,44 @@
+[
+  {
+    "id": "confirm",
+    "utterances": ["draft a lab ticket", "Fictional monitor flickers", "hardware", "confirm"],
+    "expected": "Preview then confirmed draft containing the supplied details; explicitly no ticket created and nobody contacted.",
+    "outcome": "confirmed-draft"
+  },
+  {
+    "id": "cancel-summary",
+    "utterances": ["draft a lab ticket", "cancel"],
+    "expected": "Stops at summary without asking category or confirming.",
+    "outcome": "stopped"
+  },
+  {
+    "id": "cancel-category",
+    "utterances": ["draft a lab ticket", "Fictional app will not open", "cancel"],
+    "expected": "Stops without asking for confirmation.",
+    "outcome": "stopped"
+  },
+  {
+    "id": "invalid-category",
+    "utterances": ["draft a lab ticket", "Fictional app will not open", "finance"],
+    "expected": "Stops with category explanation; no preview or confirmation.",
+    "outcome": "stopped"
+  },
+  {
+    "id": "cancel-confirmation",
+    "utterances": ["draft a lab ticket", "Fictional app will not open", "software", "cancel"],
+    "expected": "Draft not confirmed; no ticket created or person contacted.",
+    "outcome": "stopped"
+  },
+  {
+    "id": "ambiguous-confirmation",
+    "utterances": ["draft a lab ticket", "Fictional access issue", "access", "maybe"],
+    "expected": "Does not treat ambiguous wording as confirmation.",
+    "outcome": "stopped"
+  },
+  {
+    "id": "restart",
+    "utterances": ["draft a lab ticket", "Fictional monitor flickers", "hardware", "confirm", "draft a lab ticket", "Fictional app crashes", "software", "cancel"],
+    "expected": "Second draft asks all questions afresh, shows the new details, and does not reuse the first confirmation.",
+    "outcome": "stopped"
+  }
+]

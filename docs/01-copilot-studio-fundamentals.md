@@ -43,7 +43,7 @@ Tool authentication is channel-specific: [the documented table](https://learn.mi
 
 Build an unmanaged solution in Dev and add the agent plus its solution-aware dependencies. A genuine PAC export creates a ZIP; **export does not automatically unpack it**. A separate unpack operation can produce readable source for review, with the exact layout dependent on tooling and component types. This repository's promotion path intentionally does not unpack or repack.
 
-The files in `samples\faq-support-agent` merely illustrate topic and metadata shapes. They omit real exported component metadata and cannot establish a valid schema or importable solution. Author in Copilot Studio and use a genuine export, rather than treating the illustrative YAML as a supported standalone deployment.
+The editable [IT FAQ](../samples/it-faq-agent/README.md) and [ticket intake](../samples/ticket-intake-agent/README.md) samples provide instructions, single-topic code-editor YAML, and knowledge or connector assets. Their node patterns have official-source provenance, but tenant acceptance and runtime behavior are untested. The old fake solution files were retired. Author in Copilot Studio and use a genuine export; individual topic YAML is not a standalone deployment or whole-agent import.
 
 Power Fx can express conditions and formatting in topic nodes. Variable names, types, scope, and availability must be checked in the authoring canvas. An expression that parses is not evidence that a particular authenticated user property exists at runtime.
 
