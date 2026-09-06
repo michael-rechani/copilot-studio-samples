@@ -26,11 +26,20 @@ jobs:
   deploy-bicep:
     name: Deploy Azure OpenAI, AI Search, Storage, and Key Vault
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment_name }}
+    environment: ${{ inputs.environment_name == 'prod' && 'production' || inputs.environment_name }}
+    env:
+      ENVIRONMENT_NAME: ${{ inputs.environment_name }}
+      AZURE_REGION: ${{ inputs.azure_region }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Validate inputs before Azure access
+        shell: bash
+        run: |
+          [[ "$ENVIRONMENT_NAME" =~ ^(dev|test|prod)$ ]] || exit 1
+          [[ "$AZURE_REGION" =~ ^[a-z0-9]+$ ]] || exit 1
 
       - name: Azure login with OpenID Connect
         uses: azure/login@v2
@@ -44,8 +53,8 @@ jobs:
         with:
           inlineScript: |
             az group create \
-              --name "rg-copilotstudio-${{ github.event.inputs.environment_name }}" \
-              --location "${{ github.event.inputs.azure_region }}"
+              --name "rg-copilotstudio-$ENVIRONMENT_NAME" \
+              --location "$AZURE_REGION"
 
       - name: Deploy Bicep template
         uses: azure/arm-deploy@v2
@@ -57,4 +66,3 @@ jobs:
             environmentName=${{ github.event.inputs.environment_name }}
             location=${{ github.event.inputs.azure_region }}
             prefix=copilotstudio
-
