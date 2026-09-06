@@ -1,79 +1,116 @@
-name: Deploy Copilot Studio Solution (CI/CD)
+name: Promote Copilot Solution
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'samples/**'
-      - '.github/workflows/deploy-agent.yml'
   workflow_dispatch:
     inputs:
       target_environment:
-        description: 'Target Power Platform Environment'
+        description: Target (configure required reviewers on production before enabling)
         required: true
-        default: 'PROD'
+        default: TEST
         type: choice
         options:
           - TEST
           - PROD
-      solution_name:
-        description: 'Solution folder name under samples/'
+      export_run_id:
+        description: Successful main-branch Export Copilot Solution from Dev run ID
         required: true
-        default: 'faq-support-agent'
+        type: string
+      solution_name:
+        description: Expected unique solution name in that export
+        required: true
         type: string
 
 permissions:
   contents: read
-  id-token: write
+  actions: read
+
+concurrency:
+  group: solution-deployment-${{ inputs.target_environment }}
+  cancel-in-progress: false
 
 jobs:
-  build-and-deploy:
-    name: Build & Deploy Managed Copilot Solution
+  deploy:
+    if: github.ref == 'refs/heads/main'
     runs-on: windows-latest
-
+    # This names the gate; required reviewers MUST be configured in GitHub settings.
+    environment: ${{ inputs.target_environment == 'PROD' && 'production' || 'test' }}
+    timeout-minutes: 90
+    env:
+      PP_ENVIRONMENT_URL: ${{ secrets.PP_ENVIRONMENT_URL }}
+      PP_TENANT_ID: ${{ secrets.PP_TENANT_ID }}
+      PP_CLIENT_ID: ${{ secrets.PP_CLIENT_ID }}
+      PP_CLIENT_SECRET: ${{ secrets.PP_CLIENT_SECRET }}
+      PP_AUTOMATION_ENABLED: ${{ vars.PP_AUTOMATION_ENABLED }}
+      EXPORT_RUN_ID: ${{ inputs.export_run_id }}
+      SOLUTION_NAME: ${{ inputs.solution_name }}
+      TARGET_ENVIRONMENT: ${{ inputs.target_environment }}
     steps:
-      - name: 📥 Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: ⚙️ Install Power Platform Tools
-        uses: microsoft/powerplatform-actions/actions-install@v1
-
-      - name: 📦 Pack Solution (Prepare Managed Solution Zip)
-        uses: microsoft/powerplatform-actions/pack-solution@v1
+      - uses: actions/checkout@v4
+      - name: Require environment setup and trusted export origin
+        id: origin
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          . .\scripts\deployment-common.ps1
+          Assert-AutomationEnvironment
+          if ($env:TARGET_ENVIRONMENT -notin @('TEST', 'PROD')) { throw 'Invalid target.' }
+          .\scripts\validate-export-run.ps1 -RunId $env:EXPORT_RUN_ID
+      - uses: actions/download-artifact@v4
         with:
-          solution-folder: samples/${{ github.event.inputs.solution_name || 'faq-support-agent' }}
-          solution-file: out/drop/${{ github.event.inputs.solution_name || 'faq-support-agent' }}_managed.zip
-          solution-type: Managed
-
-      - name: 🔍 Run Solution Checker (Quality & Best Practices)
+          name: solution-export
+          path: out/promotion
+          run-id: ${{ inputs.export_run_id }}
+          github-token: ${{ github.token }}
+      - name: Validate archive and reviewed target settings
+        shell: pwsh
+        env:
+          EXPORT_COMMIT: ${{ steps.origin.outputs.commit }}
+        run: |
+          $settings = if ($env:TARGET_ENVIRONMENT -eq 'TEST') {
+            'config\deployment-settings.test.json'
+          } else {
+            'config\deployment-settings.prod.json'
+          }
+          .\scripts\validate-deployment.ps1 -SolutionFile 'out\promotion\solution.zip' `
+            -ManifestFile 'out\promotion\manifest.json' -ExpectedSolutionName $env:SOLUTION_NAME `
+            -DeploymentSettingsFile $settings -ExpectedRunId $env:EXPORT_RUN_ID `
+            -ExpectedRepository $env:GITHUB_REPOSITORY -ExpectedCommit $env:EXPORT_COMMIT
+          "SETTINGS_FILE=$settings" >> $env:GITHUB_ENV
+      - uses: microsoft/powerplatform-actions/actions-install@v1
+      - name: Blocking solution checker (same environment as import)
         uses: microsoft/powerplatform-actions/check-solution@v1
-        continue-on-error: true
         with:
-          environment-url: ${{ secrets.PP_ENVIRONMENT_URL_PROD }}
+          environment-url: ${{ secrets.PP_ENVIRONMENT_URL }}
           app-id: ${{ secrets.PP_CLIENT_ID }}
           client-secret: ${{ secrets.PP_CLIENT_SECRET }}
           tenant-id: ${{ secrets.PP_TENANT_ID }}
-          path: out/drop/${{ github.event.inputs.solution_name || 'faq-support-agent' }}_managed.zip
-
-      - name: 🚀 Import Managed Solution to Target Environment
+          path: out/promotion/solution.zip
+          fail-on-analysis-error: true
+          checker-logs-artifact-name: solution-checker
+      - name: Read checker evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: solution-checker
+          path: out/checker
+      - name: Require zero findings and complete checker evidence
+        shell: pwsh
+        run: .\scripts\validate-checker-results.ps1 -ResultsFolder 'out\checker'
+      - name: Import the original managed artifact
         uses: microsoft/powerplatform-actions/import-solution@v1
         with:
-          environment-url: ${{ github.event.inputs.target_environment == 'TEST' && secrets.PP_ENVIRONMENT_URL_TEST || secrets.PP_ENVIRONMENT_URL_PROD }}
+          environment-url: ${{ secrets.PP_ENVIRONMENT_URL }}
           app-id: ${{ secrets.PP_CLIENT_ID }}
           client-secret: ${{ secrets.PP_CLIENT_SECRET }}
           tenant-id: ${{ secrets.PP_TENANT_ID }}
-          solution-file: out/drop/${{ github.event.inputs.solution_name || 'faq-support-agent' }}_managed.zip
+          solution-file: out/promotion/solution.zip
           use-deployment-settings-file: true
-          deployment-settings-file: config/deployment-settings.${{ github.event.inputs.target_environment == 'TEST' && 'test' || 'prod' }}.json
-          force-overwrite: true
-          publish-changes: true
-          activate-plugins: true
-
-      - name: ✨ Publish Customizations & Copilot Agent
-        uses: microsoft/powerplatform-actions/publish-solution@v1
-        with:
-          environment-url: ${{ github.event.inputs.target_environment == 'TEST' && secrets.PP_ENVIRONMENT_URL_TEST || secrets.PP_ENVIRONMENT_URL_PROD }}
-          app-id: ${{ secrets.PP_CLIENT_ID }}
-          client-secret: ${{ secrets.PP_CLIENT_SECRET }}
-          tenant-id: ${{ secrets.PP_TENANT_ID }}
+          deployment-settings-file: ${{ env.SETTINGS_FILE }}
+          force-overwrite: false
+          publish-changes: false
+          activate-plugins: false
+      - name: Record promotion (agent publication is a separate operation)
+        shell: pwsh
+        run: |
+          "Imported export run $env:EXPORT_RUN_ID into $env:TARGET_ENVIRONMENT." >> $env:GITHUB_STEP_SUMMARY
+          "No agent publication or flow activation was performed. Follow docs/02-alm-and-automation.md." >> $env:GITHUB_STEP_SUMMARY

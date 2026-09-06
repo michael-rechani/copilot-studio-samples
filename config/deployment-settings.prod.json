@@ -2,13 +2,12 @@
   "EnvironmentVariables": [
     {
       "SchemaName": "cr123_SupportEmail",
-      "Value": "support@contoso.com"
+      "Value": "REPLACE_WITH_PRODUCTION_SUPPORT_EMAIL"
     },
     {
       "SchemaName": "cr123_AzureAISearchEndpoint",
-      "Value": "https://srch-copilotstudio-prod.search.windows.net"
+      "Value": "REPLACE_WITH_PRODUCTION_SEARCH_ENDPOINT"
     }
   ],
   "ConnectionReferences": []
 }
-
